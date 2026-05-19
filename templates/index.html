@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+  <title>AI Voice Chat — Персонажи</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#070a12;
+      --glass:rgba(255,255,255,.06);
+      --border:rgba(255,255,255,.12);
+      --text:#eaf2ff;
+      --muted:#a6b6d6;
+      --p:#00e5ff;
+      --s:#b400ff;
+      --danger:#ff0055;
+      --shadow:0 25px 80px rgba(0,0,0,.55);
+      --r:22px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Outfit,system-ui,"Segoe UI",sans-serif}
+    html,body{height:100%;width:100%;}
+    body{
+      background:radial-gradient(circle at top,#0c1633,var(--bg));
+      color:var(--text);
+      overflow:hidden;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+    }
+    .stage{
+      width:min(100vw,calc(100vh * 16 / 9));
+      height:min(100vh,calc(100vw * 9 / 16));
+      margin:auto;
+      position:relative;
+      top:50%;
+      transform:translateY(-50%);
+      border-radius:calc(var(--r) + 10px);
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      border:1px solid rgba(255,255,255,.10);
+      background:linear-gradient(135deg,rgba(0,229,255,.06),rgba(180,0,255,.06));
+    }
+    .stage::before{
+      content:"";
+      position:absolute;
+      inset:-60%;
+      background:
+        radial-gradient(circle at 20% 30%,rgba(0,229,255,.35),transparent 45%),
+        radial-gradient(circle at 70% 70%,rgba(180,0,255,.30),transparent 45%),
+        radial-gradient(circle at 50% 10%,rgba(255,0,85,.18),transparent 40%);
+      filter:blur(60px);
+      animation:float 10s ease-in-out infinite alternate;
+    }
+    @keyframes float{from{transform:translate(0,0) scale(1)}to{transform:translate(80px,60px) scale(1.06)}}
+
+    .app{
+      position:absolute;
+      inset:0;
+      padding:22px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      z-index:1;
+      min-height:0;
+    }
+
+    /* ---- Top bar ---- */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 16px;
+      background:var(--glass);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      backdrop-filter:blur(16px);
+      gap:12px;
+      min-height:56px;
+    }
+    .brand{display:flex;flex-direction:column;gap:2px;min-width:0;}
+    .brand .t{font-weight:800;letter-spacing:.5px;font-size:18px}
+    .brand .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw;}
+    .who{
+      font-size:12px;color:var(--muted);
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:rgba(0,0,0,.25);
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+
+    /* ---- Main grid ---- */
+    .main{flex:1;display:grid;grid-template-columns:1.15fr .85fr;gap:14px;min-height:0;}
+    .panel{
+      background:var(--glass);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      backdrop-filter:blur(16px);
+      overflow:hidden;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+    }
+    .panelHead{
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    .panelHead .h{font-weight:700;}
+    .panelHead .note{font-size:12px;color:var(--muted);}
+
+    /* ---- Persona cards ---- */
+    .grid{
+      padding:14px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      overflow:auto;
+      min-height:0;
+    }
+    .card{
+      height:165px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.22);
+      overflow:hidden;
+      cursor:pointer;
+      position:relative;
+      transition:.2s;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .card:hover{transform:translateY(-2px);border-color:rgba(0,229,255,.35);}
+    .card.active{outline:2px solid rgba(0,229,255,.55);}
+    .portrait{
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(circle at 30% 30%,rgba(0,229,255,.16),transparent 55%),
+        radial-gradient(circle at 70% 80%,rgba(180,0,255,.14),transparent 55%),
+        linear-gradient(135deg,rgba(255,255,255,.06),rgba(0,0,0,.15));
+      transform:scale(1.05);
+      filter:saturate(1.1);
+      animation:shimmer 4s ease-in-out infinite alternate;
+    }
+    @keyframes shimmer{from{filter:blur(0px) brightness(1)}to{filter:blur(.2px) brightness(1.05)}}
+    .cardInfo{
+      position:absolute;
+      left:0;right:0;bottom:0;
+      padding:12px;
+      background:linear-gradient(180deg,transparent,rgba(0,0,0,.72));
+    }
+    .cardInfo .name{font-weight:800}
+    .cardInfo .tag{font-size:12px;color:rgba(255,255,255,.78);margin-top:3px}
+
+    /* ---- Panel footer / voice selector ---- */
+    .panelFooter{
+      margin-top:auto;
+      padding:12px 14px;
+      border-top:1px solid rgba(255,255,255,.10);
+      font-size:12px;
+      color:var(--muted);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .voiceRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .voiceRow .lbl{font-size:12px;color:var(--muted)}
+    select{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      outline:none;
+      min-width:260px;
+      max-width:100%;
+    }
+
+    /* ---- Chat panel ---- */
+    .chatWrap{
+      background:var(--glass);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+      backdrop-filter:blur(16px);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      min-height:0;
+    }
+    .chatHead{
+      padding:14px 16px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .status{font-size:12px;color:var(--muted);min-height:16px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .btn{
+      border:none;
+      border-radius:14px;
+      padding:10px 12px;
+      cursor:pointer;
+      color:#fff;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      transition:.2s;
+      font-size:12px;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .btn:hover{transform:translateY(-1px);}
+    .btn.danger{background:rgba(255,0,85,.20);border:1px solid rgba(255,0,85,.35);}
+
+    .chat{
+      flex:1;
+      padding:14px 16px;
+      overflow:auto;
+      min-height:0;
+      line-height:1.5;
+      overscroll-behavior:contain;
+    }
+    .msg{margin:0 0 12px 0;white-space:pre-wrap;word-break:break-word;}
+    .me{color:#9adfff;}
+    .ai{color:var(--text);}
+
+    .inputRow{
+      padding:12px;
+      padding-bottom:calc(12px + env(safe-area-inset-bottom));
+      border-top:1px solid rgba(255,255,255,.10);
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .txtInput{
+      flex:1;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      outline:none;
+      min-width:0;
+      font-family:inherit;
+      font-size:14px;
+    }
+    .txtInput::placeholder{color:rgba(255,255,255,.45);}
+    .mic{width:54px;background:linear-gradient(45deg,#ff512f,#dd2476);border:none;}
+    .send{width:54px;border:none;background:linear-gradient(45deg,var(--p),#0088ff);}
+
+    /* ---- Responsive ---- */
+    @media (max-width:1100px){
+      .grid{grid-template-columns:repeat(2,1fr);}
+      .card{height:150px;}
+      select{min-width:220px;}
+      .brand .s{max-width:46vw;}
+    }
+    @media (pointer:coarse) and (orientation:portrait),(max-aspect-ratio:3/4){
+      .stage{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;top:0!important;transform:none!important;border-radius:0!important;}
+      .app{padding:14px;gap:12px;}
+      .topbar{padding:12px;}
+      .brand .t{font-size:16px}
+      .brand .s{max-width:70vw;font-size:11px}
+      .main{grid-template-columns:1fr;grid-template-rows:auto 1fr;}
+      .panelHead .note{display:none;}
+      .grid{display:flex;flex-direction:row;gap:10px;overflow-x:auto;overflow-y:hidden;padding:12px;scroll-snap-type:x mandatory;}
+      .card{flex:0 0 72%;height:130px;scroll-snap-align:start;}
+      .panelFooter{padding:10px 12px;}
+      .voiceRow{flex-direction:column;align-items:stretch;gap:8px;}
+      select{min-width:0;width:100%;}
+      .chatHead{padding:12px;}
+      .chat{padding:12px;}
+      .inputRow{padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
+      .mic,.send{width:52px;}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="stage">
+    <div class="app">
+
+      <!-- Top bar -->
+      <div class="topbar">
+        <div class="brand">
+          <div class="t">AI VOICE CHAT</div>
+          <div class="s">Персонажный голос • меньше "робота" • длинные ответы читаются полностью</div>
+        </div>
+        <div class="who" id="who">Персонаж: не выбран</div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+
+        <!-- Left: persona selector -->
+        <div class="panel">
+          <div class="panelHead">
+            <div class="h">Персонажи</div>
+            <div class="note">Выбери стиль общения</div>
+          </div>
+          <div class="grid" id="grid"></div>
+
+          <div class="panelFooter">
+            <div>Истории чатов сохраняются на этом устройстве. Озвучка идёт по предложениям и не обрывается.</div>
+            <div class="voiceRow">
+              <div class="lbl">Голос для текущего персонажа:</div>
+              <select id="voiceSelect"></select>
+              <button class="btn" id="autoVoiceBtn">🎛 Автовыбор</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: chat -->
+        <div class="chatWrap">
+          <div class="chatHead">
+            <div class="status" id="statusEl">Выбери персонажа слева и напиши сообщение.</div>
+            <div class="actions">
+              <button class="btn" onclick="stopSpeech()">🔇 Стоп звук</button>
+              <button class="btn danger" onclick="clearCurrentChat()">🗑 Очистить чат</button>
+            </div>
+          </div>
+
+          <div class="chat" id="chatBox">
+            <p class="msg ai">Привет 🙂 Выбери персонажа — и начнём.</p>
+          </div>
+
+          <div class="inputRow">
+            <input class="txtInput" id="msgInput" placeholder="Напиши сюда..." autocomplete="off"/>
+            <button class="btn mic" id="micBtn" onclick="toggleMic()">🎤</button>
+            <button class="btn send" onclick="sendMessage()">➤</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  // -------------------------------------------------------------------------
+  // DOM refs
+  // -------------------------------------------------------------------------
+  const gridEl      = document.getElementById("grid");
+  const whoEl       = document.getElementById("who");
+  const statusEl    = document.getElementById("statusEl");
+  const chatBoxEl   = document.getElementById("chatBox");
+  const msgInputEl  = document.getElementById("msgInput");
+  const micBtnEl    = document.getElementById("micBtn");
+  const voiceSelectEl = document.getElementById("voiceSelect");
+  const autoVoiceBtnEl = document.getElementById("autoVoiceBtn");
+
+  const BASE_URL = window.location.origin;
+
+  // -------------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------------
+  let personas      = [];
+  let currentPersona = null;
+  let voicesCache   = [];
+  let recognition   = null;
+  let listening     = false;
+
+  // -------------------------------------------------------------------------
+  // LocalStorage helpers
+  // -------------------------------------------------------------------------
+  const LS_CHAT_KEY  = "ai_voice_chat_persona_chats_v2";
+  const LS_VOICE_KEY = "ai_voice_chat_persona_voice_v2";
+
+  function loadJSON(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; }
+  }
+  function saveJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch(e) { console.warn("localStorage write failed:", e); }
+  }
+
+  function getChat(id)          { return loadJSON(LS_CHAT_KEY)[id] || []; }
+  function setChat(id, msgs)    { const s = loadJSON(LS_CHAT_KEY); s[id] = msgs; saveJSON(LS_CHAT_KEY, s); }
+  function appendChat(id, role, content) {
+    const msgs = getChat(id);
+    msgs.push({ role, content });
+    setChat(id, msgs);
+  }
+
+  function getSavedVoiceName(pid) { return loadJSON(LS_VOICE_KEY)[pid] || ""; }
+  function setSavedVoiceName(pid, name) { const s = loadJSON(LS_VOICE_KEY); s[pid] = name; saveJSON(LS_VOICE_KEY, s); }
+
+  // -------------------------------------------------------------------------
+  // Fallback personas (shown while server loads)
+  // -------------------------------------------------------------------------
+  const FALLBACK_PERSONAS = [
+    { id:"scientist",   label:"🔬 Учёный",    tagline:"умно • ясно • уверенно",          tts:{enabled:true,lang:"ru-RU",rate:0.98,pitch:0.90,volume:1.0,style:"calm"} },
+    { id:"anime",       label:"✨ Анимешник", tagline:"энергично • ярко • дружелюбно",   tts:{enabled:true,lang:"ru-RU",rate:1.06,pitch:1.12,volume:1.0,style:"bright"} },
+    { id:"detective",   label:"🕵️ Детектив", tagline:"холодно • точно • по делу",        tts:{enabled:true,lang:"ru-RU",rate:0.94,pitch:0.80,volume:1.0,style:"dry"} },
+    { id:"buddy",       label:"😄 Дружище",  tagline:"тёпло • с юмором • поддержка",    tts:{enabled:true,lang:"ru-RU",rate:1.01,pitch:1.02,volume:1.0,style:"warm"} },
+    { id:"coach",       label:"🚀 Коуч",      tagline:"фокус • мотивация • шаги",         tts:{enabled:true,lang:"ru-RU",rate:1.03,pitch:0.95,volume:1.0,style:"push"} },
+    { id:"philosopher", label:"🌓 Философ",   tagline:"глубоко • спокойно • смысл",       tts:{enabled:true,lang:"ru-RU",rate:0.97,pitch:0.86,volume:1.0,style:"soft"} },
+  ];
+
+  // -------------------------------------------------------------------------
+  // UI helpers
+  // -------------------------------------------------------------------------
+  function setStatus(t) { statusEl.textContent = t; }
+
+  function renderChat(id) {
+    chatBoxEl.innerHTML = "";
+    const msgs = getChat(id);
+    if (!msgs.length) {
+      const p = document.createElement("p");
+      p.className = "msg ai";
+      p.textContent = "Начнём 🙂 Напиши сообщение.";
+      chatBoxEl.appendChild(p);
+      return;
+    }
+    msgs.forEach(function(m) {
+      const p = document.createElement("p");
+      p.className = "msg " + (m.role === "user" ? "me" : "ai");
+      p.textContent = (m.role === "user" ? "Вы: " : "AI: ") + m.content;
+      chatBoxEl.appendChild(p);
+    });
+    chatBoxEl.scrollTop = chatBoxEl.scrollHeight;
+  }
+
+  function renderPersonas(list) {
+    personas = Array.isArray(list) ? list : [];
+    gridEl.innerHTML = "";
+    personas.forEach(function(p) {
+      const d = document.createElement("div");
+      d.className = "card";
+      d.dataset.id = p.id;
+      d.innerHTML =
+        '<div class="portrait"></div>' +
+        '<div class="cardInfo">' +
+          '<div class="name">' + escapeHTML(p.label) + '</div>' +
+          '<div class="tag">' + escapeHTML(p.tagline) + '</div>' +
+        '</div>';
+      d.addEventListener("click", function() { selectPersona(p); });
+      gridEl.appendChild(d);
+    });
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+
+  // -------------------------------------------------------------------------
+  // Speech synthesis
+  // -------------------------------------------------------------------------
+  function stopSpeech() {
+    if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) {
+      speechSynthesis.cancel();
+    }
+  }
+
+  function listVoices() {
+    const v = (window.speechSynthesis ? speechSynthesis.getVoices() : []) || [];
+    voicesCache = v;
+    return v;
+  }
+
+  function speakText(text, ttsConfig) {
+    if (!window.speechSynthesis || !ttsConfig || ttsConfig.enabled === false) return;
+
+    stopSpeech();
+    const speakStr = (text || "").slice(0, 1200);
+    if (!speakStr) return;
+
+    const u = new SpeechSynthesisUtterance(speakStr);
+    u.lang    = ttsConfig.lang   || "ru-RU";
+    u.rate    = ttsConfig.rate   != null ? ttsConfig.rate   : 1.0;
+    u.pitch   = ttsConfig.pitch  != null ? ttsConfig.pitch  : 1.0;
+    u.volume  = ttsConfig.volume != null ? ttsConfig.volume : 1.0;
+
+    const selectedName = voiceSelectEl.value || "";
+    const voices = listVoices();
+    let chosenVoice = null;
+
+    if (selectedName) {
+      chosenVoice = voices.find(function(v) { return v.name === selectedName; }) || null;
+    }
+    if (!chosenVoice) {
+      chosenVoice = voices.find(function(v) { return (v.lang || "").toLowerCase().startsWith("ru"); }) || null;
+    }
+    if (chosenVoice) {
+      u.voice = chosenVoice;
+    }
+
+    speechSynthesis.speak(u);
+  }
+
+  // -------------------------------------------------------------------------
+  // Voice dropdown
+  // -------------------------------------------------------------------------
+  function fillVoiceDropdown(persona) {
+    const voices = listVoices();
+    voiceSelectEl.innerHTML = "";
+
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "Авто (лучший голос)";
+    voiceSelectEl.appendChild(opt0);
+
+    const ru    = voices.filter(function(v) { return (v.lang || "").toLowerCase().startsWith("ru"); });
+    const other = voices.filter(function(v) { return !(v.lang || "").toLowerCase().startsWith("ru"); });
+    ru.concat(other).forEach(function(v) {
+      const o = document.createElement("option");
+      o.value = v.name;
+      o.textContent = v.name + " — " + v.lang;
+      voiceSelectEl.appendChild(o);
+    });
+
+    voiceSelectEl.value = getSavedVoiceName(persona.id) || "";
+  }
+
+  if (window.speechSynthesis) {
+    speechSynthesis.onvoiceschanged = function() {
+      if (currentPersona) fillVoiceDropdown(currentPersona);
+    };
+  }
+
+  voiceSelectEl.addEventListener("change", function() {
+    if (!currentPersona) return;
+    setSavedVoiceName(currentPersona.id, voiceSelectEl.value || "");
+    setStatus(voiceSelectEl.value ? "Голос сохранён." : "Автовыбор включён.");
+  });
+
+  autoVoiceBtnEl.addEventListener("click", function() {
+    if (!currentPersona) return;
+    voiceSelectEl.value = "";
+    setSavedVoiceName(currentPersona.id, "");
+    setStatus("Автовыбор включён.");
+  });
+
+  // -------------------------------------------------------------------------
+  // Persona selection
+  // -------------------------------------------------------------------------
+  function selectPersona(p) {
+    stopSpeech();
+    currentPersona = p;
+    whoEl.textContent = "Персонаж: " + p.label;
+    document.querySelectorAll(".card").forEach(function(el) { el.classList.remove("active"); });
+    const card = document.querySelector('.card[data-id="' + p.id + '"]');
+    if (card) card.classList.add("active");
+    fillVoiceDropdown(p);
+    renderChat(p.id);
+    setStatus("Вы выбрали: " + p.label + ". Напиши сообщение.");
+  }
+
+  function clearCurrentChat() {
+    if (!currentPersona) return;
+    stopSpeech();
+    setChat(currentPersona.id, []);
+    renderChat(currentPersona.id);
+    setStatus("Чат очищен.");
+  }
+  window.clearCurrentChat = clearCurrentChat;
+
+  // -------------------------------------------------------------------------
+  // Build API history payload (no ts/extra fields)
+  // -------------------------------------------------------------------------
+  function buildHistoryForAPI(id) {
+    return getChat(id).slice(-10).map(function(m) {
+      return { role: m.role === "user" ? "user" : "assistant", content: m.content };
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Send message
+  // -------------------------------------------------------------------------
+  async function sendMessage() {
+    const text = (msgInputEl.value || "").trim();
+    if (!text) return;
+    if (!currentPersona) { setStatus("Сначала выбери персонажа."); return; }
+
+    const historyBeforeSend = buildHistoryForAPI(currentPersona.id);
+    msgInputEl.value = "";
+    appendChat(currentPersona.id, "user", text);
+    renderChat(currentPersona.id);
+    setStatus("Думаю...");
+
+    try {
+      const res = await fetch(BASE_URL + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          persona: currentPersona.id,
+          message: text,
+          history: historyBeforeSend,
+        }),
+      });
+
+      let data = {};
+      try { data = await res.json(); } catch(_) {}
+
+      if (!res.ok) {
+        const errMsg = (data && (data.detail || data.error)) || ("HTTP " + res.status);
+        appendChat(currentPersona.id, "assistant", "Ошибка: " + errMsg);
+        renderChat(currentPersona.id);
+        setStatus("Ошибка (" + res.status + ")");
+        return;
+      }
+
+      const answer = ((data.response || "").trim()) || "…";
+      appendChat(currentPersona.id, "assistant", answer);
+      renderChat(currentPersona.id);
+      setStatus("Готов ✅");
+
+      speakText(data.tts_text || answer, data.tts);
+
+    } catch (e) {
+      console.error("sendMessage error:", e);
+      appendChat(currentPersona.id, "assistant", "Ошибка соединения с сервером.");
+      renderChat(currentPersona.id);
+      setStatus("Ошибка соединения");
+    }
+  }
+  window.sendMessage = sendMessage;
+
+  // -------------------------------------------------------------------------
+  // Microphone (Speech Recognition)
+  // -------------------------------------------------------------------------
+  function toggleMic() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Микрофон не поддерживается в этом браузере. Попробуйте Chrome.");
+      return;
+    }
+
+    if (!recognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = "ru-RU";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = function(e) {
+        const transcript = (e.results && e.results[0] && e.results[0][0] && e.results[0][0].transcript) || "";
+        msgInputEl.value = transcript;
+        sendMessage();
+      };
+
+      recognition.onerror = function(e) {
+        console.warn("SpeechRecognition error:", e.error);
+        setStatus("Ошибка микрофона: " + e.error);
+        listening = false;
+        micBtnEl.textContent = "🎤";
+      };
+
+      recognition.onend = function() {
+        listening = false;
+        micBtnEl.textContent = "🎤";
+      };
+    }
+
+    if (!listening) {
+      try {
+        recognition.start();
+        listening = true;
+        micBtnEl.textContent = "🔴";
+      } catch(e) {
+        console.warn("Could not start recognition:", e);
+      }
+    } else {
+      recognition.stop();
+    }
+  }
+  window.toggleMic = toggleMic;
+
+  // -------------------------------------------------------------------------
+  // Keyboard shortcut
+  // -------------------------------------------------------------------------
+  msgInputEl.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Startup: load personas from server
+  // -------------------------------------------------------------------------
+  async function loadPersonas() {
+    renderPersonas(FALLBACK_PERSONAS);
+    selectPersona(FALLBACK_PERSONAS[3]); // buddy default
+    setStatus("Загружаю персонажей с сервера...");
+
+    try {
+      const res = await fetch(BASE_URL + "/personas", { cache: "no-store" });
+      const data = await res.json().catch(function() { return {}; });
+      const serverList = (data && data.personas) || [];
+
+      if (Array.isArray(serverList) && serverList.length > 0) {
+        renderPersonas(serverList);
+        selectPersona(serverList.find(function(p) { return p.id === "buddy"; }) || serverList[0]);
+        setStatus("Готов ✅");
+      } else {
+        setStatus("Сервер не вернул персонажей. Использую встроенные.");
+      }
+    } catch (e) {
+      console.warn("Could not reach server personas endpoint:", e);
+      setStatus("Сервер недоступен. Использую встроенные персонажи.");
+    }
+  }
+
+  loadPersonas();
+
+})();
+</script>
+</body>
+</html>
