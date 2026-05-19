@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#0f172a">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
   <title>AI Voice Chat — Персонажи</title>
@@ -458,11 +460,22 @@
   // -------------------------------------------------------------------------
   // Speech synthesis
   // -------------------------------------------------------------------------
-  function stopSpeech() {
-    if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) {
+  window.stopSpeech = function() {
+    if ('speechSynthesis' in window) {
+      // 1. Ovozni to'xtatish
       speechSynthesis.cancel();
+
+      // 2. Agar mikrofon ham ishlab turgan bo'lsa, uni ham o'chirish (ixtiyoriy)
+      if (listening && recognition) {
+        recognition.stop();
+        listening = false;
+        micBtnEl.textContent = "🎤";
+      }
+
+      console.log("Audio va jarayon to'xtatildi.");
+      setStatus("Звук остановлен.");
     }
-  }
+  };
 
   function listVoices() {
     const v = (window.speechSynthesis ? speechSynthesis.getVoices() : []) || [];
@@ -716,6 +729,11 @@
   loadPersonas();
 
 })();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/static/service-worker.js");
+}
 </script>
 </body>
 </html>
